@@ -1,0 +1,93 @@
+services:
+  # Backend API
+  - type: web
+    name: swiftreply-api
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: swiftreply-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: swiftreply-redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: swiftreply-frontend
+          property: host
+          prepend: "https://"
+      - key: WHATSAPP_VERIFY_TOKEN
+        value: swiftreply_verify_token
+      - key: DEBUG
+        value: "false"
+    autoDeploy: true
+
+  # Frontend Static Site
+  - type: web
+    name: swiftreply-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: swiftreply-api
+          property: host
+          prepend: "https://"
+          append: "/api/v1"
+    autoDeploy: true
+
+  # Celery Worker
+  - type: worker
+    name: swiftreply-worker
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.tasks.celery_app worker --loglevel=info
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: swiftreply-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: swiftreply-redis
+          property: connectionString
+    autoDeploy: true
+
+databases:
+  - name: swiftreply-db
+    region: oregon
+    plan: free
+    databaseName: swiftreply
+    user: swiftreply
+
+  - type: redis
+    name: swiftreply-redis
+    region: oregon
+    plan: free
+    maxmemoryPolicy: noeviction

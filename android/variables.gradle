@@ -1,0 +1,14 @@
+// SwiftReply Android SDK config
+ext {
+    minSdkVersion    = 24          // Android 7.0+ (covers 95%+ of devices)
+    compileSdkVersion = 34         // Android 14
+    targetSdkVersion  = 34
+    androidxActivityVersion       = '1.8.0'
+    androidxAppCompatVersion      = '1.6.1'
+    androidxCoordinatorLayoutVersion = '1.2.0'
+    androidxCoreVersion           = '1.12.0'
+    androidxFragmentVersion       = '1.6.2'
+    coreSplashScreenVersion       = '1.0.1'
+    cordovaAndroidVersion         = '10.0.0'
+    firebaseMessagingVersion      = '23.4.0'
+}

@@ -1,0 +1,29 @@
+[package]
+name = "swiftreply"
+version = "1.0.0"
+description = "SwiftReply — AI-Powered WhatsApp Business Messaging"
+authors = ["SwiftReply Team"]
+license = "MIT"
+repository = "https://github.com/yourorg/swiftreply"
+edition = "2021"
+rust-version = "1.70"
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+tauri = { version = "1.6", features = [
+  "shell-open",
+  "http-all",
+  "notification-all",
+  "window-all",
+  "path-all",
+  "fs-all",
+  "system-tray"
+] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+default = ["custom-protocol"]

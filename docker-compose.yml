@@ -1,0 +1,91 @@
+version: '3.9'
+
+# SwiftReply — Full Local Stack
+# Quick start: cp .env.example .env && docker-compose up --build
+# Evolution API UI: http://localhost:8080
+# Backend API docs: http://localhost:8000/docs
+# Frontend:         http://localhost:5173
+
+services:
+
+  db:
+    image: postgres:15-alpine
+    container_name: swiftreply_db
+    environment:
+      POSTGRES_USER: swiftreply_user
+      POSTGRES_PASSWORD: swiftreply_pass
+      POSTGRES_DB: swiftreply_db
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U swiftreply_user -d swiftreply_db']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  evolution:
+    image: atendai/evolution-api:v2.1.1
+    container_name: swiftreply_evolution
+    restart: always
+    ports:
+      - '8080:8080'
+    environment:
+      SERVER_URL: http://localhost:8080
+      AUTHENTICATION_API_KEY: swiftreply-evolution-key
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: 'true'
+      DATABASE_ENABLED: 'false'
+      LOG_LEVEL: ERROR
+      WEBHOOK_GLOBAL_URL: http://backend:8000/api/evolution/webhook
+      WEBHOOK_GLOBAL_ENABLED: 'true'
+      WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: 'false'
+      QRCODE_LIMIT: 30
+      QRCODE_COLOR: '#25D366'
+    volumes:
+      - evolution_data:/evolution/instances
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    build: ./backend
+    container_name: swiftreply_backend
+    restart: always
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://swiftreply_user:swiftreply_pass@db:5432/swiftreply_db
+      FRONTEND_URL: http://localhost:5173
+      EVOLUTION_API_URL: http://evolution:8080
+      EVOLUTION_API_KEY: swiftreply-evolution-key
+      EVOLUTION_INSTANCE: swiftreply
+      BACKEND_URL: http://localhost:8000
+      DEBUG: 'true'
+    ports:
+      - '8000:8000'
+    volumes:
+      - ./backend:/app
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      evolution:
+        condition: service_started
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  frontend:
+    build: ./frontend
+    container_name: swiftreply_frontend
+    restart: always
+    ports:
+      - '5173:80'
+    depends_on:
+      - backend
+
+volumes:
+  pg_data:
+  uploads:
+  evolution_data:
